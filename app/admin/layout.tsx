@@ -44,8 +44,12 @@ export default function AdminLayout({
           <div className="flex justify-between h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
-                <Settings className="h-8 w-8 text-blue-400" />
-                <span className="ml-2 text-xl font-bold text-white">
+                <img 
+                  src="https://res.cloudinary.com/dfsfskmha/image/upload/v1750365592/rusba/electionhub-logo_ney3fi.png" 
+                  alt="Election Hub" 
+                  className="h-10 w-auto"
+                />
+                <span className="ml-3 text-xl font-bold text-white">
                   Admin Panel
                 </span>
               </div>

@@ -9,8 +9,12 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center">
-              <Vote className="h-8 w-8 text-blue-600" />
-              <span className="ml-2 text-xl font-bold text-gray-900">Election Management</span>
+              <img 
+                src="https://res.cloudinary.com/dfsfskmha/image/upload/v1750365592/rusba/electionhub-logo_ney3fi.png" 
+                alt="Election Hub" 
+                className="h-10 w-auto"
+              />
+              <span className="ml-3 text-xl font-bold text-gray-900">Election Management</span>
             </div>
             <div className="flex gap-4">
               <Link

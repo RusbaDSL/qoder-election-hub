@@ -44,8 +44,12 @@ export default function DashboardLayout({
           <div className="flex justify-between h-16">
             <div className="flex">
               <div className="flex-shrink-0 flex items-center">
-                <Vote className="h-8 w-8 text-blue-600" />
-                <span className="ml-2 text-xl font-bold text-gray-900">
+                <img 
+                  src="https://res.cloudinary.com/dfsfskmha/image/upload/v1750365592/rusba/electionhub-logo_ney3fi.png" 
+                  alt="Election Hub" 
+                  className="h-10 w-auto"
+                />
+                <span className="ml-3 text-xl font-bold text-gray-900">
                   Election Management
                 </span>
               </div>
