@@ -71,9 +71,35 @@ export default function VoterVerificationModal({
       return
     }
 
-    // In a real app, you would send the code via email/SMS
-    // For now, we'll just show it (for demo purposes)
-    alert(`Your verification code is: ${code}\n\n(In production, this would be sent to your ${contactType})`)
+    // Send verification code via email or show alert for phone
+    if (contactType === 'email') {
+      // Get election name for email context
+      const { data: election } = await supabase
+        .from('elections')
+        .select('name')
+        .eq('id', electionId)
+        .single()
+
+      // Send verification email via Mailtrap
+      const emailResponse = await fetch('/api/verification/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: contactValue,
+          code,
+          electionName: election?.name,
+        }),
+      })
+
+      if (!emailResponse.ok) {
+        setError('Failed to send verification email. Please try again.')
+        setLoading(false)
+        return
+      }
+    } else {
+      // Phone/SMS not implemented yet - show code in alert
+      alert(`Your verification code is: ${code}\n\n(SMS integration coming soon)`)
+    }
 
     setVoterId(voter.id)
     setStep('verify')
