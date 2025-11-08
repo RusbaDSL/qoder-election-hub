@@ -71,7 +71,7 @@ export default function VoterVerificationModal({
       return
     }
 
-    // Send verification code via email or show alert for phone
+    // Send verification code via email or SMS
     if (contactType === 'email') {
       // Get election name for email context
       const { data: election } = await supabase
@@ -97,8 +97,28 @@ export default function VoterVerificationModal({
         return
       }
     } else {
-      // Phone/SMS not implemented yet - show code in alert
-      alert(`Your verification code is: ${code}\n\n(SMS integration coming soon)`)
+      // Send verification SMS via Twilio
+      const { data: election } = await supabase
+        .from('elections')
+        .select('name')
+        .eq('id', electionId)
+        .single()
+
+      const smsResponse = await fetch('/api/verification/send-sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          to: contactValue,
+          code,
+          electionName: election?.name,
+        }),
+      })
+
+      if (!smsResponse.ok) {
+        setError('Failed to send verification SMS. Please try again.')
+        setLoading(false)
+        return
+      }
     }
 
     setVoterId(voter.id)
