@@ -47,7 +47,7 @@ export default function LoginPage() {
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
           {error && (
-            <div className="rounded-md bg-red-50 p-4">
+            <div className="rounded-md bg-red-50 p-4" role="alert" aria-live="assertive">
               <div className="text-sm text-red-800">{error}</div>
             </div>
           )}
@@ -66,6 +66,7 @@ export default function LoginPage() {
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                aria-required="true"
               />
             </div>
             <div>
@@ -82,6 +83,7 @@ export default function LoginPage() {
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                aria-required="true"
               />
             </div>
           </div>

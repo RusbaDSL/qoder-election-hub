@@ -138,7 +138,7 @@ export default function ElectionStatsPage() {
         </div>
 
         {/* Statistics Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12" role="region" aria-label="Election statistics summary">
           <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center">
               <Users className="h-10 w-10 text-blue-600" />
@@ -171,7 +171,7 @@ export default function ElectionStatsPage() {
         </div>
 
         {/* Voting Status */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8 text-center">
+        <div className="bg-white rounded-lg shadow-md p-6 mb-8 text-center" role="status" aria-live="polite">
           <div className="inline-flex items-center">
             <div
               className={`h-3 w-3 rounded-full mr-3 ${

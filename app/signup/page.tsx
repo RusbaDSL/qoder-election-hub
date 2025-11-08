@@ -53,7 +53,7 @@ export default function SignupPage() {
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSignup}>
           {error && (
-            <div className="rounded-md bg-red-50 p-4">
+            <div className="rounded-md bg-red-50 p-4" role="alert" aria-live="assertive">
               <div className="text-sm text-red-800">{error}</div>
             </div>
           )}

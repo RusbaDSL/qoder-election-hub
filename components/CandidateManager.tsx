@@ -275,6 +275,7 @@ export default function CandidateManager({ electionId, positionId, isVotingActiv
                   className="text-red-600 hover:text-red-900 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={isVotingActive}
                   title={isVotingActive ? 'Cannot remove candidates while voting is active' : 'Remove candidate'}
+                  aria-label={`Remove ${candidate.voters?.name || 'candidate'}`}
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>

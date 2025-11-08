@@ -138,6 +138,7 @@ export default function PositionManager({ electionId, isVotingActive = false }: 
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g., President, Secretary"
+                aria-required="true"
               />
             </div>
 

@@ -67,12 +67,13 @@ export default function ElectionControl({ election, onUpdate }: ElectionControlP
       <h3 className="text-lg font-semibold text-gray-900 mb-4">Voting Controls</h3>
 
       {/* Status Display */}
-      <div className="mb-6">
+      <div className="mb-6" role="status" aria-live="polite" aria-atomic="true">
         <div className="flex items-center gap-3 mb-4">
           <div
             className={`h-4 w-4 rounded-full ${
               election.is_voting_active ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
             }`}
+            aria-hidden="true"
           />
           <span className="text-lg font-medium">
             Status: {election.is_voting_active ? 'Voting is LIVE' : 'Voting is Paused'}

@@ -85,14 +85,14 @@ export default function VotingInterface({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" role="form" aria-label="Election ballot">
       {error && (
-        <div className="rounded-md bg-red-50 p-4">
+        <div className="rounded-md bg-red-50 p-4" role="alert" aria-live="assertive">
           <div className="text-sm text-red-800">{error}</div>
         </div>
       )}
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4" role="note">
         <p className="text-sm text-blue-800">
           <strong>Instructions:</strong> Select one candidate for each position.
           You must vote for all positions to submit your ballot.
@@ -100,8 +100,8 @@ export default function VotingInterface({
       </div>
 
       {positions.map((position) => (
-        <div key={position.id} className="border border-gray-200 rounded-lg p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">{position.title}</h3>
+        <fieldset key={position.id} className="border border-gray-200 rounded-lg p-4">
+          <legend className="text-lg font-semibold text-gray-900 mb-2">{position.title}</legend>
           {position.description && (
             <p className="text-sm text-gray-600 mb-4">{position.description}</p>
           )}
@@ -154,7 +154,7 @@ export default function VotingInterface({
               <p className="text-center text-gray-500 py-4">No candidates for this position</p>
             )}
           </div>
-        </div>
+        </fieldset>
       ))}
 
       <div className="sticky bottom-0 bg-white pt-4 border-t border-gray-200">

@@ -118,10 +118,15 @@ export default function VoterVerificationModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="verification-dialog-title"
+    >
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-          <h2 className="text-xl font-bold text-gray-900">
+          <h2 id="verification-dialog-title" className="text-xl font-bold text-gray-900">
             {step === 'input' && 'Voter Verification'}
             {step === 'verify' && 'Enter Verification Code'}
             {step === 'vote' && 'Cast Your Vote'}
@@ -129,6 +134,7 @@ export default function VoterVerificationModal({
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
+            aria-label="Close verification dialog"
           >
             <X className="h-6 w-6" />
           </button>
@@ -136,7 +142,7 @@ export default function VoterVerificationModal({
 
         <div className="p-6">
           {error && (
-            <div className="mb-4 rounded-md bg-red-50 p-4">
+            <div className="mb-4 rounded-md bg-red-50 p-4" role="alert" aria-live="assertive">
               <div className="text-sm text-red-800">{error}</div>
             </div>
           )}
@@ -189,6 +195,8 @@ export default function VoterVerificationModal({
                   placeholder={
                     contactType === 'email' ? 'your@email.com' : '+234...'
                   }
+                  aria-required="true"
+                  aria-describedby={error ? 'contact-error' : undefined}
                 />
               </div>
 
@@ -224,7 +232,12 @@ export default function VoterVerificationModal({
                   value={verificationCode}
                   onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
                   placeholder="000000"
+                  aria-required="true"
+                  aria-describedby="code-instructions"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
                 />
+                <p id="code-instructions" className="sr-only">Enter the 6-digit verification code sent to your {contactType}</p>
               </div>
 
               <div className="flex gap-3">
