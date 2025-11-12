@@ -1,0 +1,311 @@
+===============================================================================
+VOTER VERIFICATION SERVICES SETUP GUIDE
+Email (Mailtrap) & SMS (Twilio) Configuration
+===============================================================================
+
+This guide explains how to set up email and SMS verification services for the
+Election Hub application. Both services are required for voters to receive
+verification codes.
+
+===============================================================================
+MAILTRAP EMAIL SERVICE SETUP
+===============================================================================
+
+Mailtrap is used to send verification codes via email to voters.
+
+STEP 1: CREATE MAILTRAP ACCOUNT
+--------------------------------
+1. Go to https://mailtrap.io/
+2. Sign up for a free account (or log in if you have one)
+3. Verify your email address
+
+STEP 2: GET API TOKEN
+----------------------
+1. After logging in, navigate to: https://mailtrap.io/api-tokens
+2. Click "Create Token" or "Add API Token"
+3. Give it a name (e.g., "Election Hub Production")
+4. Set scope to "Email Sending" or "All"
+5. Click "Create Token"
+6. Copy the generated token (you won't see it again!)
+
+STEP 3: VERIFY SENDER EMAIL (Important!)
+-----------------------------------------
+1. Go to "Sending Domains" in your Mailtrap dashboard
+2. Click "Add Domain" or use the sandbox domain for testing
+3. For production:
+   - Add your domain (e.g., electionhub.com)
+   - Add the DNS records shown (TXT, CNAME, MX)
+   - Wait for verification (can take up to 48 hours)
+4. For testing/development:
+   - Use the sandbox email provided by Mailtrap
+   - Or use inbox@yourdomain.mailtrap.io
+
+STEP 4: UPDATE ENVIRONMENT VARIABLES
+-------------------------------------
+Open your .env.local file and add these variables:
+
+MAILTRAP_API_TOKEN=your_actual_api_token_here
+MAILTRAP_SENDER_EMAIL=noreply@yourdomain.com
+MAILTRAP_SENDER_NAME=Election Hub
+
+Example:
+MAILTRAP_API_TOKEN=a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6
+MAILTRAP_SENDER_EMAIL=noreply@electionhub.com
+MAILTRAP_SENDER_NAME=Election Hub Voting System
+
+STEP 5: TEST EMAIL SENDING
+---------------------------
+1. Restart your Next.js development server (npm run dev)
+2. Go to an election's public stats page
+3. Click to verify as a voter
+4. Enter a valid email address
+5. Check if you receive the verification code email
+6. Check Mailtrap dashboard for delivery logs
+
+TROUBLESHOOTING MAILTRAP:
+-------------------------
+- "Mailtrap token not configured" error:
+  → Check that MAILTRAP_API_TOKEN is set in .env.local
+  → Restart your dev server after adding variables
+
+- Emails not arriving:
+  → Verify sender domain is verified in Mailtrap
+  → Check spam folder
+  → Review Mailtrap dashboard logs for errors
+  → Ensure API token has "Email Sending" permission
+
+- "Failed to send email" error:
+  → Check API token is valid and not expired
+  → Verify sender email matches verified domain
+  → Check Mailtrap account is active (free tier limits)
+
+===============================================================================
+TWILIO SMS SERVICE SETUP
+===============================================================================
+
+Twilio is used to send verification codes via SMS to voters' phone numbers.
+
+STEP 1: CREATE TWILIO ACCOUNT
+------------------------------
+1. Go to https://www.twilio.com/
+2. Click "Sign Up" and create a free account
+3. Verify your email and phone number
+4. Complete the account setup wizard
+
+STEP 2: GET ACCOUNT CREDENTIALS
+--------------------------------
+1. Log in to https://console.twilio.com/
+2. From the dashboard, you'll see:
+   - Account SID (starts with "AC...")
+   - Auth Token (click to reveal)
+3. Copy both values - you'll need them
+
+STEP 3: GET A PHONE NUMBER
+---------------------------
+Option A - Trial Account (Free, Limited):
+1. Twilio gives you a trial number automatically
+2. Find it under "Phone Numbers" → "Manage" → "Active Numbers"
+3. Trial accounts can only send to verified phone numbers
+4. To verify a phone: Console → Phone Numbers → Verified Caller IDs
+
+Option B - Production Account (Paid):
+1. Add credit to your account ($20 minimum recommended)
+2. Go to Phone Numbers → Buy a Number
+3. Choose your country (Nigeria: +234)
+4. Select SMS capability
+5. Purchase the number
+
+STEP 4: UPDATE ENVIRONMENT VARIABLES
+-------------------------------------
+Open your .env.local file and add these variables:
+
+TWILIO_ACCOUNT_SID=your_account_sid_here
+TWILIO_AUTH_TOKEN=your_auth_token_here
+TWILIO_PHONE_NUMBER=your_twilio_phone_number
+
+Example:
+TWILIO_ACCOUNT_SID=ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+TWILIO_AUTH_TOKEN=your_twilio_auth_token_32_chars
+TWILIO_PHONE_NUMBER=+1234567890
+
+Note for Nigerian numbers:
+- Use international format: +234XXXXXXXXXX
+- Remove leading zero: +2348012345678 (not +2340812345678)
+
+STEP 5: TEST SMS SENDING
+-------------------------
+1. Restart your Next.js development server (npm run dev)
+2. Go to an election's public stats page
+3. Click to verify as a voter
+4. Select "Phone" verification method
+5. Enter a phone number (must be verified if using trial account)
+6. Check if you receive the SMS with verification code
+7. Check Twilio console logs for delivery status
+
+TROUBLESHOOTING TWILIO:
+-----------------------
+- "Twilio credentials not configured" error:
+  → Check all three variables are set in .env.local
+  → Restart your dev server after adding variables
+
+- "Failed to send SMS" error:
+  → Verify Account SID and Auth Token are correct
+  → Check phone number format (+234... for Nigeria)
+  → Ensure Twilio account has credit (for paid accounts)
+
+- SMS not arriving (Trial Account):
+  → Recipient number must be verified in Twilio console
+  → Go to Phone Numbers → Verified Caller IDs
+  → Add and verify the phone number first
+
+- SMS not arriving (Paid Account):
+  → Check account balance has sufficient credit
+  → Verify phone number has SMS capability
+  → Check Twilio console for error logs
+  → Some countries require SMS registration/approval
+
+- "Invalid phone number" error:
+  → Use international format: +[country code][number]
+  → Remove spaces, dashes, or special characters
+  → Example: +2348012345678 (not +234 801 234 5678)
+
+===============================================================================
+PRODUCTION DEPLOYMENT CONSIDERATIONS
+===============================================================================
+
+SECURITY:
+---------
+1. Never commit .env.local to version control
+2. Use environment variables in your hosting platform:
+   - Vercel: Project Settings → Environment Variables
+   - Netlify: Site Settings → Environment Variables
+   - Custom server: Use .env files or system environment
+
+3. Keep API tokens and auth tokens secret
+4. Rotate tokens periodically for security
+
+MAILTRAP PRODUCTION:
+--------------------
+1. Upgrade to paid plan for higher sending limits
+2. Verify your sending domain properly (DNS records)
+3. Monitor sending quotas and delivery rates
+4. Set up webhooks for bounce/complaint handling
+5. Consider dedicated IP for high volume
+
+TWILIO PRODUCTION:
+------------------
+1. Upgrade from trial account
+2. Add sufficient credit or set up auto-recharge
+3. Register your sender ID (required in some countries)
+4. Apply for 10DLC registration (USA)
+5. Set up A2P 10DLC for business messaging (USA)
+6. Consider buying multiple numbers for load balancing
+7. Monitor SMS costs (varies by country)
+
+COST ESTIMATES:
+---------------
+Mailtrap:
+- Free: 1,000 emails/month
+- Starter: $10/month - 10,000 emails
+- Business: $50/month - 100,000 emails
+
+Twilio SMS:
+- Nigeria: ~₦15-30 per SMS
+- USA: ~$0.0079 per SMS
+- Phone number rental: $1-2/month
+- Varies by country
+
+MONITORING:
+-----------
+1. Set up logging for failed deliveries
+2. Monitor API usage and costs
+3. Track delivery rates and failures
+4. Set up alerts for quota limits
+5. Review bounce and complaint rates
+
+===============================================================================
+TESTING CHECKLIST
+===============================================================================
+
+Before going live, test the following:
+
+EMAIL VERIFICATION:
+[ ] Email arrives within 30 seconds
+[ ] Verification code is correct (6 digits)
+[ ] Email includes election name
+[ ] Email format is professional
+[ ] Links and branding display correctly
+[ ] Spam folder check
+[ ] Multiple email providers tested (Gmail, Yahoo, etc.)
+[ ] Code expiry works (15 minutes)
+
+SMS VERIFICATION:
+[ ] SMS arrives within 30 seconds
+[ ] Verification code is correct (6 digits)
+[ ] Message includes election name
+[ ] Message is under 160 characters
+[ ] Multiple carriers tested
+[ ] International numbers work (if applicable)
+[ ] Code expiry works (15 minutes)
+
+ERROR HANDLING:
+[ ] Invalid email address shows error
+[ ] Invalid phone number shows error
+[ ] Expired code shows appropriate message
+[ ] Network failures handled gracefully
+[ ] Service outages show user-friendly errors
+
+===============================================================================
+FREQUENTLY ASKED QUESTIONS
+===============================================================================
+
+Q: Can I use a different email service instead of Mailtrap?
+A: Yes, you can modify app/api/verification/send/route.ts to use SendGrid,
+   Postmark, AWS SES, or any other email service with similar API calls.
+
+Q: Can I use a different SMS service instead of Twilio?
+A: Yes, you can modify app/api/verification/send-sms/route.ts to use 
+   Vonage (Nexmo), AWS SNS, or any other SMS provider.
+
+Q: How much will this cost for 1000 voters?
+A: Approximately:
+   - Email only: Free (within Mailtrap free tier)
+   - SMS only (Nigeria): ₦15,000 - ₦30,000
+   - Mixed: Depends on ratio of email vs SMS verification
+
+Q: Do voters need to have both email and phone?
+A: No, they only need one. Voters choose which method to use for verification.
+
+Q: What happens if email/SMS fails to send?
+A: User sees an error message asking them to try again. You can check logs
+   in Mailtrap/Twilio dashboards for debugging.
+
+Q: Can I test without setting up these services?
+A: For development, you can modify the code to skip actual sending and just
+   log codes to the console. Not recommended for production.
+
+Q: How do I switch from sandbox/testing to production?
+A: Update environment variables with production credentials, verify domains,
+   add billing info to services, and test thoroughly.
+
+===============================================================================
+SUPPORT RESOURCES
+===============================================================================
+
+Mailtrap:
+- Documentation: https://help.mailtrap.io/
+- API Docs: https://api-docs.mailtrap.io/
+- Support: support@mailtrap.io
+
+Twilio:
+- Documentation: https://www.twilio.com/docs
+- SMS Guide: https://www.twilio.com/docs/sms
+- Support: https://support.twilio.com/
+- Community: https://www.twilio.com/community
+
+Election Hub:
+- Check the .env.example file for required variables
+- Review logs in browser console and server terminal
+- Ensure all environment variables are set before starting server
+
+===============================================================================

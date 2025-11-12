@@ -50,7 +50,7 @@ export default function DashboardLayout({
                   className="h-10 w-auto"
                 />
                 <span className="ml-3 text-xl font-bold text-gray-900">
-                  Election Management
+                  Election Manager
                 </span>
               </div>
               <div className="hidden sm:ml-6 sm:flex sm:space-x-8">

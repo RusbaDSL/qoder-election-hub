@@ -14,7 +14,7 @@ export default function Home() {
                 alt="Election Hub" 
                 className="h-10 w-auto"
               />
-              <span className="ml-3 text-xl font-bold text-gray-900">Election Management</span>
+              <span className="ml-3 text-xl font-bold text-gray-900">Election Manager</span>
             </div>
             <div className="flex gap-4">
               <Link
@@ -124,7 +124,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="bg-gray-900 text-white mt-24 py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <p className="text-gray-400">© 2025 Election Management System. All rights reserved.</p>
+          <p className="text-gray-400">© 2025 Election Manager. All rights reserved.</p>
         </div>
       </footer>
     </div>

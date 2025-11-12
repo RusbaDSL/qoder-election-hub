@@ -138,6 +138,21 @@ CREATE INDEX idx_votes_voter ON public.votes(voter_id);
 CREATE INDEX idx_payments_election ON public.payments(election_id);
 CREATE INDEX idx_payments_status ON public.payments(status);
 
+-- Create unique constraints to prevent duplicate voters within an election
+-- Prevent duplicate emails within the same election (case-insensitive)
+CREATE UNIQUE INDEX idx_voters_unique_email_per_election 
+    ON public.voters(election_id, LOWER(email)) 
+    WHERE email IS NOT NULL;
+
+-- Prevent duplicate phone numbers within the same election
+CREATE UNIQUE INDEX idx_voters_unique_phone_per_election 
+    ON public.voters(election_id, phone_number) 
+    WHERE phone_number IS NOT NULL;
+
+-- Prevent duplicate names within the same election (case-insensitive)
+CREATE UNIQUE INDEX idx_voters_unique_name_per_election 
+    ON public.voters(election_id, LOWER(name));
+
 -- Enable Row Level Security
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_settings ENABLE ROW LEVEL SECURITY;

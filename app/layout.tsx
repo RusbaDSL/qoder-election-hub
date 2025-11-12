@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Election Management System",
+  title: "Election Manager",
   description: "Manage elections, voters, and real-time voting statistics",
 };
 

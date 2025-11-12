@@ -34,6 +34,52 @@ export default function VoterForm({ electionId, onVoterAdded, currentVoterCount 
       return
     }
 
+    // Check for duplicates before inserting
+    const duplicateCheck = []
+    
+    if (email) {
+      const { data: emailDupe } = await supabase
+        .from('voters')
+        .select('id')
+        .eq('election_id', electionId)
+        .ilike('email', email)
+        .limit(1)
+      
+      if (emailDupe && emailDupe.length > 0) {
+        duplicateCheck.push('email')
+      }
+    }
+
+    if (phone) {
+      const { data: phoneDupe } = await supabase
+        .from('voters')
+        .select('id')
+        .eq('election_id', electionId)
+        .eq('phone_number', phone)
+        .limit(1)
+      
+      if (phoneDupe && phoneDupe.length > 0) {
+        duplicateCheck.push('phone number')
+      }
+    }
+
+    const { data: nameDupe } = await supabase
+      .from('voters')
+      .select('id')
+      .eq('election_id', electionId)
+      .ilike('name', name)
+      .limit(1)
+    
+    if (nameDupe && nameDupe.length > 0) {
+      duplicateCheck.push('name')
+    }
+
+    if (duplicateCheck.length > 0) {
+      setError(`A voter with this ${duplicateCheck.join(' and ')} already exists in this election`)
+      setLoading(false)
+      return
+    }
+
     const { error: insertError } = await supabase
       .from('voters')
       .insert({
@@ -94,20 +140,146 @@ Do you want to continue?`
     setLoading(true)
     setError(null)
 
-    const voters = bulkData.map((row: any) => ({
-      election_id: electionId,
-      name: row.name || row.Name,
-      email: row.email || row.Email || null,
-      phone_number: row.phone || row.Phone || row.phone_number || row['Phone Number'] || null,
-    }))
+    // Fetch existing voters for duplicate detection
+    const { data: existingVoters } = await supabase
+      .from('voters')
+      .select('name, email, phone_number')
+      .eq('election_id', electionId)
+
+    const existingEmails = new Set(
+      existingVoters?.filter(v => v.email).map(v => v.email!.toLowerCase()) || []
+    )
+    const existingPhones = new Set(
+      existingVoters?.filter(v => v.phone_number).map(v => v.phone_number!) || []
+    )
+    const existingNames = new Set(
+      existingVoters?.filter(v => v.name).map(v => v.name.toLowerCase()) || []
+    )
+
+    // Deduplicate within CSV and against existing voters
+    const seenInCSV = {
+      emails: new Set<string>(),
+      phones: new Set<string>(),
+      names: new Set<string>()
+    }
+
+    const validVoters: any[] = []
+    const duplicates: any[] = []
+    const skipped: any[] = []
+
+    bulkData.forEach((row: any) => {
+      const name = (row.name || row.Name || '').trim()
+      const email = (row.email || row.Email || '').trim().toLowerCase()
+      const phone = (row.phone || row.Phone || row.phone_number || row['Phone Number'] || '').trim()
+
+      if (!name) {
+        skipped.push({ reason: 'Missing name', row })
+        return
+      }
+
+      if (!email && !phone) {
+        skipped.push({ reason: 'Missing email and phone', row })
+        return
+      }
+
+      // Check for duplicates
+      const reasons: string[] = []
+
+      if (email && existingEmails.has(email)) {
+        reasons.push('email exists')
+      }
+      if (phone && existingPhones.has(phone)) {
+        reasons.push('phone exists')
+      }
+      if (existingNames.has(name.toLowerCase())) {
+        reasons.push('name exists')
+      }
+      if (email && seenInCSV.emails.has(email)) {
+        reasons.push('duplicate email in CSV')
+      }
+      if (phone && seenInCSV.phones.has(phone)) {
+        reasons.push('duplicate phone in CSV')
+      }
+      if (seenInCSV.names.has(name.toLowerCase())) {
+        reasons.push('duplicate name in CSV')
+      }
+
+      if (reasons.length > 0) {
+        duplicates.push({ name, email, phone, reasons: reasons.join(', ') })
+        return
+      }
+
+      // Mark as seen in CSV
+      if (email) seenInCSV.emails.add(email)
+      if (phone) seenInCSV.phones.add(phone)
+      seenInCSV.names.add(name.toLowerCase())
+
+      validVoters.push({
+        election_id: electionId,
+        name,
+        email: email || null,
+        phone_number: phone || null,
+      })
+    })
+
+    // Show summary if there are duplicates or skipped rows
+    if (duplicates.length > 0 || skipped.length > 0) {
+      let message = `Found issues in CSV:\n\n`
+      
+      if (duplicates.length > 0) {
+        message += `Duplicates (${duplicates.length}):\n`
+        duplicates.slice(0, 5).forEach(d => {
+          message += `- ${d.name}: ${d.reasons}\n`
+        })
+        if (duplicates.length > 5) {
+          message += `... and ${duplicates.length - 5} more\n`
+        }
+        message += '\n'
+      }
+
+      if (skipped.length > 0) {
+        message += `Skipped (${skipped.length}):\n`
+        skipped.slice(0, 5).forEach(s => {
+          message += `- ${s.reason}\n`
+        })
+        if (skipped.length > 5) {
+          message += `... and ${skipped.length - 5} more\n`
+        }
+        message += '\n'
+      }
+
+      if (validVoters.length > 0) {
+        message += `${validVoters.length} valid voters will be added.\n\nContinue?`
+        if (!confirm(message)) {
+          setLoading(false)
+          return
+        }
+      } else {
+        alert(message + 'No valid voters to add.')
+        setLoading(false)
+        return
+      }
+    }
+
+    if (validVoters.length === 0) {
+      setError('No valid voters to upload after deduplication')
+      setLoading(false)
+      return
+    }
 
     const { error: insertError } = await supabase
       .from('voters')
-      .insert(voters)
+      .insert(validVoters)
 
     if (insertError) {
       setError(insertError.message)
     } else {
+      const message = `Successfully added ${validVoters.length} voter(s)${
+        duplicates.length > 0 || skipped.length > 0 
+          ? `. Skipped ${duplicates.length + skipped.length} duplicate(s)/invalid row(s).` 
+          : ''
+      }`
+      alert(message)
       setBulkData([])
       setShowBulkUpload(false)
       onVoterAdded()
