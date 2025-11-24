@@ -42,22 +42,27 @@ export default function ElectionControl({ election, onUpdate }: ElectionControlP
 
     setLoading(true)
 
-    const newStatus = !election.is_voting_active
-    const { error } = await supabase
-      .from('elections')
-      .update({
-        is_voting_active: newStatus,
-        status: newStatus ? 'active' : 'paused',
-      } as any)
-      .eq('id', election.id)
+    try {
+      const newStatus = !election.is_voting_active
+      const { error: updateError } = await supabase
+        .from('elections')
+        .update({
+          is_voting_active: newStatus,
+          status: newStatus ? 'active' : 'paused',
+        } as any)
+        .eq('id', election.id)
 
-    if (error) {
-      alert('Failed to update voting status')
-    } else {
+      if (updateError) {
+        throw new Error(updateError.message)
+      }
+
       onUpdate()
+    } catch (err) {
+      console.error('Error updating voting status:', err)
+      alert(err instanceof Error ? err.message : 'Failed to update voting status')
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
   }
 
   const check = canStartVoting()
