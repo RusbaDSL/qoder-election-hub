@@ -10,6 +10,7 @@ import VoterList from '@/components/VoterList'
 import PositionManager from '@/components/PositionManager'
 import PaymentSection from '@/components/PaymentSection'
 import ElectionControl from '@/components/ElectionControl'
+import ElectionScheduleEditor from '@/components/ElectionScheduleEditor'
 
 export default function ElectionDetailPage() {
   const params = useParams()
@@ -131,6 +132,8 @@ export default function ElectionDetailPage() {
 
               <ElectionControl election={election} onUpdate={fetchElection} />
 
+              <ElectionScheduleEditor election={election} onUpdate={fetchElection} />
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <div className="flex items-center">
@@ -168,26 +171,6 @@ export default function ElectionDetailPage() {
                   </div>
                 </div>
               </div>
-
-              {(election.voting_start_time || election.voting_end_time) && (
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Schedule</h3>
-                  <div className="space-y-2">
-                    {election.voting_start_time && (
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Calendar className="h-4 w-4 mr-2" />
-                        <span>Start: {new Date(election.voting_start_time).toLocaleString()}</span>
-                      </div>
-                    )}
-                    {election.voting_end_time && (
-                      <div className="flex items-center text-sm text-gray-600">
-                        <Calendar className="h-4 w-4 mr-2" />
-                        <span>End: {new Date(election.voting_end_time).toLocaleString()}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
 
               <div className="pt-4 border-t border-gray-200">
                 <Link
