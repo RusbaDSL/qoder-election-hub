@@ -92,7 +92,9 @@ export default function VoterVerificationModal({
       })
 
       if (!emailResponse.ok) {
-        setError('Failed to send verification email. Please try again.')
+        const errorData = await emailResponse.json().catch(() => ({}))
+        console.error('Email API error:', errorData)
+        setError(`Failed to send verification email. ${errorData.message || errorData.error || 'Please try again.'}`)
         setLoading(false)
         return
       }
@@ -115,7 +117,9 @@ export default function VoterVerificationModal({
       })
 
       if (!smsResponse.ok) {
-        setError('Failed to send verification SMS. Please try again.')
+        const errorData = await smsResponse.json().catch(() => ({}))
+        console.error('SMS API error:', errorData)
+        setError(`Failed to send verification SMS. ${errorData.message || errorData.error || 'Please try again.'}`)
         setLoading(false)
         return
       }

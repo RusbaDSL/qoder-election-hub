@@ -13,6 +13,7 @@ export async function POST(req: Request) {
     const fromName = process.env.MAILTRAP_SENDER_NAME || 'Election Hub'
 
     if (!token) {
+      console.error('Mailtrap token not configured in environment variables')
       return NextResponse.json({ error: 'Mailtrap token not configured' }, { status: 500 })
     }
 
@@ -33,6 +34,11 @@ export async function POST(req: Request) {
       </div>
     `
 
+    console.log('Sending email via Mailtrap with token:', token ? 'Token present' : 'Token missing')
+    console.log('Sending to:', to)
+    console.log('From email:', fromEmail)
+    console.log('From name:', fromName)
+
     const res = await fetch('https://send.api.mailtrap.io/api/send', {
       method: 'POST',
       headers: {
@@ -49,15 +55,28 @@ export async function POST(req: Request) {
       }),
     })
 
+    console.log('Mailtrap response status:', res.status)
+    console.log('Mailtrap response headers:', Object.fromEntries(res.headers))
+
     if (!res.ok) {
       const details = await res.text()
-      console.error('Mailtrap send failed:', details)
-      return NextResponse.json({ error: 'Failed to send email', details }, { status: 500 })
+      console.error('Mailtrap send failed with status:', res.status)
+      console.error('Mailtrap error details:', details)
+      return NextResponse.json({ 
+        error: 'Failed to send email', 
+        details,
+        status: res.status 
+      }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true })
+    const result = await res.json()
+    console.log('Mailtrap success response:', result)
+    return NextResponse.json({ success: true, result })
   } catch (error) {
     console.error('Verification email error:', error)
-    return NextResponse.json({ error: 'Unexpected error sending email' }, { status: 500 })
+    return NextResponse.json({ 
+      error: 'Unexpected error sending email', 
+      message: error instanceof Error ? error.message : 'Unknown error' 
+    }, { status: 500 })
   }
 }
