@@ -29,7 +29,7 @@ export default function ElectionScheduleEditor({ election, onUpdate }: ElectionS
     }
     
     try {
-      const { error } = await supabase
+      const { error: updateError } = await supabase
         .from('elections')
         .update({
           voting_start_time: startDate ? new Date(startDate).toISOString() : null,
@@ -37,13 +37,15 @@ export default function ElectionScheduleEditor({ election, onUpdate }: ElectionS
         })
         .eq('id', election.id)
       
-      if (error) throw error
+      if (updateError) {
+        throw new Error(updateError.message)
+      }
       
       onUpdate()
       setIsEditing(false)
     } catch (err) {
-      setError('Failed to update schedule')
-      console.error(err)
+      console.error('Error updating schedule:', err)
+      setError(err instanceof Error ? err.message : 'Failed to update schedule')
     } finally {
       setLoading(false)
     }
