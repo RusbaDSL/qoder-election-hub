@@ -62,9 +62,27 @@ export async function POST(req: Request) {
       const details = await res.text()
       console.error('Mailtrap send failed with status:', res.status)
       console.error('Mailtrap error details:', details)
+      
+      // Parse error details if it's JSON
+      let errorMessage = 'Failed to send email'
+      let errorDetails = details
+      
+      try {
+        const parsedDetails = JSON.parse(details)
+        if (parsedDetails.errors && parsedDetails.errors.includes('Security check pending. Mailtrap is checking your domain credibility, it usually takes one business day.')) {
+          errorMessage = 'Email service is being verified'
+          errorDetails = 'Mailtrap is checking your domain credibility. This usually takes one business day. Please try again later.'
+        } else if (parsedDetails.errors) {
+          errorDetails = parsedDetails.errors.join(', ')
+        }
+      } catch (parseError) {
+        // If parsing fails, keep the raw details
+        console.error('Failed to parse Mailtrap error details:', parseError)
+      }
+      
       return NextResponse.json({ 
-        error: 'Failed to send email', 
-        details,
+        error: errorMessage, 
+        details: errorDetails,
         status: res.status 
       }, { status: 500 })
     }

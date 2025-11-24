@@ -94,7 +94,15 @@ export default function VoterVerificationModal({
       if (!emailResponse.ok) {
         const errorData = await emailResponse.json().catch(() => ({}))
         console.error('Email API error:', errorData)
-        setError(`Failed to send verification email. ${errorData.message || errorData.error || 'Please try again.'}`)
+        
+        let errorMessage = 'Failed to send verification email.'
+        if (errorData.error === 'Email service is being verified') {
+          errorMessage = 'Email service is being verified. Mailtrap is checking domain credibility, this usually takes one business day. Please try again later.'
+        } else {
+          errorMessage += ` ${errorData.message || errorData.error || 'Please try again.'}`
+        }
+        
+        setError(errorMessage)
         setLoading(false)
         return
       }
