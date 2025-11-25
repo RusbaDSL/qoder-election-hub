@@ -19,6 +19,36 @@ export default function ElectionStatsPage() {
   useEffect(() => {
     fetchElectionData()
     
+    // Check if election has ended and send final results notification
+    const checkElectionEnd = async () => {
+      if (election && election.voting_end_time && new Date(election.voting_end_time) < new Date() && election.status !== 'completed') {
+        // Election has ended but not marked as completed, send final results
+        try {
+          const response = await fetch('/api/election/notify', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              electionId: election.id,
+              type: 'results',
+            }),
+          })
+          
+          if (!response.ok) {
+            console.error('Failed to send election results notification')
+          }
+        } catch (error) {
+          console.error('Error sending election results notification:', error)
+        }
+      }
+    }
+    
+    // Run the check after fetching election data
+    if (election) {
+      checkElectionEnd()
+    }
+    
     // Subscribe to real-time updates
     const channel = supabase
       .channel('election-stats')
@@ -80,7 +110,7 @@ export default function ElectionStatsPage() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [electionId])
+  }, [electionId, election])
 
   const fetchElectionData = async () => {
     try {

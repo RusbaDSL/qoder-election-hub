@@ -8,6 +8,28 @@ import { Database } from '@/lib/database.types'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 
+// Import the notification function
+async function sendElectionCreatedNotification(electionId: string) {
+  try {
+    const response = await fetch('/api/election/notify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        electionId,
+        type: 'created',
+      }),
+    })
+    
+    if (!response.ok) {
+      console.error('Failed to send election created notification')
+    }
+  } catch (error) {
+    console.error('Error sending election created notification:', error)
+  }
+}
+
 export default function CreateElectionPage() {
   const { user } = useAuth()
   const [name, setName] = useState('')
@@ -45,6 +67,8 @@ export default function CreateElectionPage() {
       setError(insertError.message)
       setLoading(false)
     } else if (data) {
+      // Send notification email to election creator
+      await sendElectionCreatedNotification(data.id)
       router.push(`/dashboard/elections/${data.id}`)
     }
   }

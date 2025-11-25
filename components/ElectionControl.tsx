@@ -56,6 +56,64 @@ export default function ElectionControl({ election, onUpdate }: ElectionControlP
         throw new Error(updateError.message)
       }
 
+      // Send notification when election starts or ends
+      try {
+        const notificationType = newStatus ? 'started' : 'ended'
+        
+        // If ending election, also send final results
+        if (!newStatus) {
+          // Send both 'ended' and 'results' notifications
+          const response1 = await fetch('/api/election/notify', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              electionId: election.id,
+              type: 'ended',
+            }),
+          })
+          
+          if (!response1.ok) {
+            console.error('Failed to send election ended notification')
+          }
+          
+          // Send final results notification
+          const response2 = await fetch('/api/election/notify', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              electionId: election.id,
+              type: 'results',
+            }),
+          })
+          
+          if (!response2.ok) {
+            console.error('Failed to send election results notification')
+          }
+        } else {
+          // Just send started notification
+          const response = await fetch('/api/election/notify', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              electionId: election.id,
+              type: notificationType,
+            }),
+          })
+          
+          if (!response.ok) {
+            console.error('Failed to send election status notification')
+          }
+        }
+      } catch (notifyError) {
+        console.error('Error sending election status notification:', notifyError)
+      }
+
       onUpdate()
     } catch (err) {
       console.error('Error updating voting status:', err)
