@@ -13,6 +13,7 @@ export default function ElectionStatsPage() {
   const [positions, setPositions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showVoteModal, setShowVoteModal] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
@@ -20,19 +21,7 @@ export default function ElectionStatsPage() {
     
     // Subscribe to real-time updates
     const channel = supabase
-      .channel('election-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'candidates',
-          filter: `position_id=in.(${positions.map(p => p.id).join(',')})`
-        },
-        () => {
-          fetchElectionData()
-        }
-      )
+      .channel('election-stats')
       .on(
         'postgres_changes',
         {
@@ -41,11 +30,52 @@ export default function ElectionStatsPage() {
           table: 'elections',
           filter: `id=eq.${electionId}`
         },
+        (payload) => {
+          console.log('Election updated:', payload)
+          setElection(payload.new)
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'votes',
+          filter: `election_id=eq.${electionId}`
+        },
         () => {
+          console.log('Vote cast, refreshing data')
           fetchElectionData()
         }
       )
-      .subscribe()
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'candidates'
+        },
+        () => {
+          console.log('Candidate updated, refreshing data')
+          fetchElectionData()
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'positions',
+          filter: `election_id=eq.${electionId}`
+        },
+        () => {
+          console.log('Position updated, refreshing data')
+          fetchElectionData()
+        }
+      )
+      .subscribe((status) => {
+        console.log('Subscription status:', status)
+      })
 
     return () => {
       supabase.removeChannel(channel)
@@ -53,35 +83,57 @@ export default function ElectionStatsPage() {
   }, [electionId])
 
   const fetchElectionData = async () => {
-    // Fetch election details
-    const { data: electionData } = await supabase
-      .from('elections')
-      .select('*')
-      .eq('id', electionId)
-      .single()
+    try {
+      setRefreshing(true)
+      
+      // Add a small delay to ensure UI updates properly
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      // Fetch election details
+      const { data: electionData, error: electionError } = await supabase
+        .from('elections')
+        .select('*')
+        .eq('id', electionId)
+        .single()
 
-    if (electionData) {
-      setElection(electionData)
-    }
+      if (electionError) {
+        console.error('Error fetching election:', electionError)
+        return
+      }
 
-    // Fetch positions with candidates
-    const { data: positionsData } = await supabase
-      .from('positions')
-      .select(`
-        *,
-        candidates (
+      if (electionData) {
+        setElection(electionData)
+      }
+
+      // Fetch positions with candidates
+      const { data: positionsData, error: positionsError } = await supabase
+        .from('positions')
+        .select(`
           *,
-          voters:voter_id (name, email)
-        )
-      `)
-      .eq('election_id', electionId)
-      .order('display_order', { ascending: true })
+          candidates (
+            *,
+            voters:voter_id (name, email)
+          )
+        `)
+        .eq('election_id', electionId)
+        .order('display_order', { ascending: true })
 
-    if (positionsData) {
-      setPositions(positionsData)
+      if (positionsError) {
+        console.error('Error fetching positions:', positionsError)
+        return
+      }
+
+      if (positionsData) {
+        setPositions(positionsData)
+      }
+    } catch (error) {
+      console.error('Unexpected error fetching election data:', error)
+    } finally {
+      if (loading) {
+        setLoading(false)
+      }
+      setRefreshing(false)
     }
-
-    setLoading(false)
   }
 
   const calculatePercentage = (voteCount: number, totalVotes: number) => {
@@ -136,6 +188,15 @@ export default function ElectionStatsPage() {
             </div>
           )}
         </div>
+
+        {/* Refresh Indicator */}
+        {refreshing && (
+          <div className="text-center mb-4">
+            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+              Updating results...
+            </span>
+          </div>
+        )}
 
         {/* Statistics Overview */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12" role="region" aria-label="Election statistics summary">
