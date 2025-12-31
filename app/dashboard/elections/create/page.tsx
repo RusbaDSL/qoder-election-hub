@@ -59,7 +59,7 @@ export default function CreateElectionPage() {
 
     const { data, error: insertError } = await supabase
       .from('elections')
-      .insert(electionData)
+      .insert(electionData as any)
       .select()
       .single()
 
@@ -67,9 +67,12 @@ export default function CreateElectionPage() {
       setError(insertError.message)
       setLoading(false)
     } else if (data) {
+      // Type the data properly
+      const typedData = data as any
+      
       // Send notification email to election creator
-      await sendElectionCreatedNotification(data.id)
-      router.push(`/dashboard/elections/${data.id}`)
+      await sendElectionCreatedNotification(typedData.id)
+      router.push(`/dashboard/elections/${typedData.id}`)
     }
   }
 

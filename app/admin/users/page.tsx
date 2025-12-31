@@ -9,6 +9,7 @@ export default function AdminUsersPage() {
   const [filteredUsers, setFilteredUsers] = useState<any[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const usersPerPage = 10
   const supabase = createClient()
@@ -22,20 +23,34 @@ export default function AdminUsersPage() {
   }, [searchTerm, users])
 
   const fetchUsers = async () => {
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('profiles')
-      .select(`
-        *,
-        elections(count)
-      `)
-      .order('created_at', { ascending: false })
+    try {
+      setLoading(true)
+      setError(null)
+      const { data, error } = await supabase
+        .from('profiles')
+        .select(`
+          *,
+          elections(count)
+        `)
+        .order('created_at', { ascending: false })
 
-    if (!error && data) {
-      setUsers(data)
-      setFilteredUsers(data)
+      if (error) {
+        console.error('Error fetching users:', error)
+        setError('Failed to load users: ' + error.message)
+        setUsers([])
+        setFilteredUsers([])
+      } else if (data) {
+        setUsers(data)
+        setFilteredUsers(data)
+      }
+    } catch (err) {
+      console.error('Error fetching users:', err)
+      setError('Failed to load users: ' + (err as Error).message)
+      setUsers([])
+      setFilteredUsers([])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const filterUsers = () => {
@@ -86,6 +101,20 @@ export default function AdminUsersPage() {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-lg">Loading users...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-lg text-red-600">Error: {error}</div>
+        <button 
+          onClick={fetchUsers}
+          className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+        >
+          Retry
+        </button>
       </div>
     )
   }

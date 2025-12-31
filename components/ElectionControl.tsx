@@ -40,13 +40,17 @@ export default function ElectionControl({ election, onUpdate }: ElectionControlP
       if (!confirm('Are you sure you want to start voting?')) return
     }
 
+    if (loading) return
+    
     setLoading(true)
-
+    
     try {
       const newStatus = !election.is_voting_active
+      // Use upsert to avoid typing issue
       const { error: updateError } = await supabase
         .from('elections')
-        .update({
+        .upsert({
+          id: election.id,
           is_voting_active: newStatus,
           status: newStatus ? 'active' : 'paused',
         } as any)

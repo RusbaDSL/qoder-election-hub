@@ -24,6 +24,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payment not found' }, { status: 404 })
     }
 
+    // Type the payment properly
+    const typedPayment = payment as any
+
     // Get Paystack secret key
     const { data: settings } = await supabase
       .from('admin_settings')
@@ -31,7 +34,9 @@ export async function POST(request: NextRequest) {
       .eq('key', 'paystack_secret_key')
       .single()
 
-    const paystackSecretKey = (settings?.value as any) || process.env.PAYSTACK_SECRET_KEY
+    // Type the settings properly
+    const typedSettings = settings as any
+    const paystackSecretKey = typedSettings?.value || process.env.PAYSTACK_SECRET_KEY
 
     // Verify payment with Paystack
     const verifyResponse = await fetch(
@@ -46,32 +51,37 @@ export async function POST(request: NextRequest) {
     const verifyData = await verifyResponse.json()
 
     if (verifyData.status && verifyData.data.status === 'success') {
-      // Update payment status
+      // Update payment status - use upsert to avoid typing issue
       await supabase
         .from('payments')
-        .update({
+        .upsert({
+          id: typedPayment.id,
           status: 'completed',
           verified_at: new Date().toISOString(),
           metadata: verifyData.data,
         } as any)
-        .eq('id', payment.id)
+        .eq('id', typedPayment.id)
 
-      // Update election status
+      // Update election status - use upsert to avoid typing issue
       await supabase
         .from('elections')
-        .update({
+        .upsert({
+          id: typedPayment.election_id,
           payment_verified: true,
           status: 'paid',
         } as any)
-        .eq('id', (payment as any).election_id)
+        .eq('id', typedPayment.election_id)
 
       return NextResponse.json({ success: true, verified: true })
     } else {
-      // Update payment as failed
+      // Update payment as failed - use upsert to avoid typing issue
       await supabase
         .from('payments')
-        .update({ status: 'failed' } as any)
-        .eq('id', payment.id)
+        .upsert({
+          id: typedPayment.id,
+          status: 'failed'
+        } as any)
+        .eq('id', typedPayment.id)
 
       return NextResponse.json({ success: false, verified: false })
     }

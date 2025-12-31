@@ -17,31 +17,34 @@ export default function PaymentSection({ electionId }: PaymentSectionProps) {
   const supabase = createClient()
 
   useEffect(() => {
-    fetchData()
-  }, [electionId])
-
-  const fetchData = async () => {
-    // Fetch election
-    const { data: electionData } = await supabase
-      .from('elections')
-      .select('*')
-      .eq('id', electionId)
-      .single()
-
-    if (electionData) {
-      setElection(electionData)
-
-      // Fetch appropriate pricing plan based on voter count
-      const { data: planData } = await supabase
-        .from('pricing_plans')
+    const fetchData = async () => {
+      setLoading(true)
+      
+      // Fetch election data
+      const { data: electionData } = await supabase
+        .from('elections')
         .select('*')
-        .lte('min_voters', electionData.total_voters || 0)
-        .gte('max_voters', electionData.total_voters || 0)
-        .eq('is_active', true)
+        .eq('id', electionId)
         .single()
 
-      if (planData) {
-        setPlan(planData)
+      if (electionData) {
+        setElection(electionData)
+        
+        // Type the electionData properly
+        const typedElectionData = electionData as any
+
+        // Fetch pricing plan based on voter count
+        const { data: planData } = await supabase
+          .from('pricing_plans')
+          .select('*')
+          .lte('min_voters', typedElectionData.total_voters || 0)
+          .gte('max_voters', typedElectionData.total_voters || 0)
+          .eq('is_active', true)
+          .single()
+
+        if (planData) {
+          setPlan(planData)
+        }
       }
 
       // Fetch payment if exists
@@ -56,10 +59,12 @@ export default function PaymentSection({ electionId }: PaymentSectionProps) {
       if (paymentData) {
         setPayment(paymentData)
       }
+      
+      setLoading(false)
     }
-
-    setLoading(false)
-  }
+    
+    fetchData()
+  }, [electionId])
 
   const handlePayment = async () => {
     setProcessing(true)
@@ -77,7 +82,44 @@ export default function PaymentSection({ electionId }: PaymentSectionProps) {
 
       if (data.free) {
         alert('This election is free! No payment required.')
-        fetchData()
+        // Fetch data again to update state
+        const { data: electionData } = await supabase
+          .from('elections')
+          .select('*')
+          .eq('id', electionId)
+          .single()
+
+        if (electionData) {
+          setElection(electionData)
+          
+          // Type the electionData properly
+          const typedElectionData = electionData as any
+
+          const { data: planData } = await supabase
+            .from('pricing_plans')
+            .select('*')
+            .lte('min_voters', typedElectionData.total_voters || 0)
+            .gte('max_voters', typedElectionData.total_voters || 0)
+            .eq('is_active', true)
+            .single()
+
+          if (planData) {
+            setPlan(planData)
+          }
+        }
+
+        // Fetch payment if exists
+        const { data: paymentData } = await supabase
+          .from('payments')
+          .select('*')
+          .eq('election_id', electionId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single()
+
+        if (paymentData) {
+          setPayment(paymentData)
+        }
       } else if (data.authorization_url) {
         // Redirect to Paystack payment page
         window.location.href = data.authorization_url

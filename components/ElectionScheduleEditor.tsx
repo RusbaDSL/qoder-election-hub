@@ -31,10 +31,11 @@ export default function ElectionScheduleEditor({ election, onUpdate }: ElectionS
     try {
       const { error: updateError } = await supabase
         .from('elections')
-        .update({
+        .upsert({
+          id: election.id,
           voting_start_time: startDate ? new Date(startDate).toISOString() : null,
           voting_end_time: endDate ? new Date(endDate).toISOString() : null,
-        })
+        } as any)
         .eq('id', election.id)
       
       if (updateError) {

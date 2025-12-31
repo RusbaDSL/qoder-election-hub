@@ -48,7 +48,11 @@ export default function PositionManager({ electionId, isVotingActive = false }: 
     if (editingId) {
       await supabase
         .from('positions')
-        .update({ title, description })
+        .upsert({ 
+          id: editingId, 
+          title, 
+          description 
+        } as any)
         .eq('id', editingId)
     } else {
       await supabase

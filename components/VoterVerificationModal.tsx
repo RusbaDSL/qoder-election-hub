@@ -24,46 +24,49 @@ export default function VoterVerificationModal({
   const supabase = createClient()
 
   const sendVerificationCode = async () => {
+    if (!contactValue) {
+      setError('Please enter your contact information')
+      return
+    }
+
     setLoading(true)
     setError(null)
 
-    // Generate a 6-digit code
-    const code = Math.floor(100000 + Math.random() * 900000).toString()
-    const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString() // 15 minutes
-
-    // Find voter and update verification code
-    const query = contactType === 'email'
-      ? { email: contactValue }
-      : { phone_number: contactValue }
-
-    const { data: voters, error: fetchError } = await supabase
+    // Get voter details to check voting status
+    const { data: voter, error: fetchError } = await supabase
       .from('voters')
       .select('*')
       .eq('election_id', electionId)
-      .match(query)
+      .or(`email.eq.${contactValue},phone_number.eq.${contactValue}`)
+      .single()
 
-    if (fetchError || !voters || voters.length === 0) {
-      setError('No voter found with this contact information')
+    if (fetchError || !voter) {
+      setError('Voter not found or invalid contact information')
       setLoading(false)
       return
     }
 
-    const voter = voters[0]
+    // Type the voter properly
+    const typedVoter = voter as any
 
-    if (voter.has_voted) {
+    if (typedVoter.has_voted) {
       setError('You have already voted in this election')
       setLoading(false)
       return
     }
 
-    // Update voter with verification code
+    // Generate and store verification code
+    const code = Math.floor(100000 + Math.random() * 900000).toString() // 6-digit code
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString() // 10 minutes from now
+
     const { error: updateError } = await supabase
       .from('voters')
-      .update({
+      .upsert({
+        id: typedVoter.id,
         verification_code: code,
         verification_code_expires_at: expiresAt,
       } as any)
-      .eq('id', voter.id)
+      .eq('id', typedVoter.id)
 
     if (updateError) {
       setError('Failed to send verification code')
@@ -80,6 +83,9 @@ export default function VoterVerificationModal({
         .eq('id', electionId)
         .single()
 
+      // Type the election properly
+      const typedElection = election as any
+
       // Send verification email via Mailtrap
       const emailResponse = await fetch('/api/verification/send', {
         method: 'POST',
@@ -87,7 +93,7 @@ export default function VoterVerificationModal({
         body: JSON.stringify({
           to: contactValue,
           code,
-          electionName: election?.name,
+          electionName: typedElection?.name,
         }),
       })
 
@@ -114,13 +120,16 @@ export default function VoterVerificationModal({
         .eq('id', electionId)
         .single()
 
+      // Type the election properly
+      const typedElection = election as any
+
       const smsResponse = await fetch('/api/verification/send-sms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           to: contactValue,
           code,
-          electionName: election?.name,
+          electionName: typedElection?.name,
         }),
       })
 
@@ -133,7 +142,7 @@ export default function VoterVerificationModal({
       }
     }
 
-    setVoterId(voter.id)
+    setVoterId(typedVoter.id)
     setStep('verify')
     setLoading(false)
   }
@@ -154,13 +163,16 @@ export default function VoterVerificationModal({
       return
     }
 
-    if (voter.verification_code !== verificationCode) {
+    // Type the voter properly
+    const typedVoter = voter as any
+
+    if (typedVoter.verification_code !== verificationCode) {
       setError('Invalid verification code')
       setLoading(false)
       return
     }
 
-    if (new Date(voter.verification_code_expires_at!) < new Date()) {
+    if (new Date(typedVoter.verification_code_expires_at!) < new Date()) {
       setError('Verification code has expired')
       setLoading(false)
       return

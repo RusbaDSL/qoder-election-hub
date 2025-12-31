@@ -10,6 +10,7 @@ export default function AdminElectionsPage() {
   const [filteredElections, setFilteredElections] = useState<any[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const electionsPerPage = 10
   const supabase = createClient()
@@ -23,22 +24,36 @@ export default function AdminElectionsPage() {
   }, [searchTerm, elections])
 
   const fetchElections = async () => {
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('elections')
-      .select(`
-        *,
-        creator:profiles(full_name, email),
-        positions(count),
-        voters(count)
-      `)
-      .order('created_at', { ascending: false })
+    try {
+      setLoading(true)
+      setError(null)
+      const { data, error } = await supabase
+        .from('elections')
+        .select(`
+          *,
+          creator:profiles(full_name, email),
+          positions(count),
+          voters(count)
+        `)
+        .order('created_at', { ascending: false })
 
-    if (!error && data) {
-      setElections(data)
-      setFilteredElections(data)
+      if (error) {
+        console.error('Error fetching elections:', error)
+        setError('Failed to load elections: ' + error.message)
+        setElections([])
+        setFilteredElections([])
+      } else if (data) {
+        setElections(data)
+        setFilteredElections(data)
+      }
+    } catch (err) {
+      console.error('Error fetching elections:', err)
+      setError('Failed to load elections: ' + (err as Error).message)
+      setElections([])
+      setFilteredElections([])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const filterElections = () => {
@@ -98,6 +113,20 @@ export default function AdminElectionsPage() {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-lg">Loading elections...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-lg text-red-600">Error: {error}</div>
+        <button 
+          onClick={fetchElections}
+          className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+        >
+          Retry
+        </button>
       </div>
     )
   }

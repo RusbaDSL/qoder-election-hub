@@ -87,7 +87,7 @@ export default function VoterForm({ electionId, onVoterAdded, currentVoterCount 
         name,
         email: email || null,
         phone_number: phone || null,
-      })
+      } as any)
 
     if (insertError) {
       setError(insertError.message)
@@ -146,14 +146,17 @@ Do you want to continue?`
       .select('name, email, phone_number')
       .eq('election_id', electionId)
 
+    // Type the existingVoters properly
+    const typedExistingVoters = existingVoters as any
+
     const existingEmails = new Set(
-      existingVoters?.filter(v => v.email).map(v => v.email!.toLowerCase()) || []
+      typedExistingVoters?.filter((v: any) => v.email).map((v: any) => v.email!.toLowerCase()) || []
     )
     const existingPhones = new Set(
-      existingVoters?.filter(v => v.phone_number).map(v => v.phone_number!) || []
+      typedExistingVoters?.filter((v: any) => v.phone_number).map((v: any) => v.phone_number!) || []
     )
     const existingNames = new Set(
-      existingVoters?.filter(v => v.name).map(v => v.name.toLowerCase()) || []
+      typedExistingVoters?.filter((v: any) => v.name).map((v: any) => v.name.toLowerCase()) || []
     )
 
     // Deduplicate within CSV and against existing voters
@@ -269,7 +272,7 @@ Do you want to continue?`
 
     const { error: insertError } = await supabase
       .from('voters')
-      .insert(validVoters)
+      .insert(validVoters as any)
 
     if (insertError) {
       setError(insertError.message)
@@ -277,11 +280,10 @@ Do you want to continue?`
       const message = `Successfully added ${validVoters.length} voter(s)${
         duplicates.length > 0 || skipped.length > 0 
           ? `. Skipped ${duplicates.length + skipped.length} duplicate(s)/invalid row(s).` 
-          : ''
+          : '.'
       }`
       alert(message)
       setBulkData([])
-      setShowBulkUpload(false)
       onVoterAdded()
     }
     setLoading(false)

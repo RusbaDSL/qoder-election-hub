@@ -14,40 +14,11 @@ export default function ElectionStatsPage() {
   const [loading, setLoading] = useState(true)
   const [showVoteModal, setShowVoteModal] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [notificationSent, setNotificationSent] = useState(false) // Track if notification has been sent
   const supabase = createClient()
 
   useEffect(() => {
     fetchElectionData()
-    
-    // Check if election has ended and send final results notification
-    const checkElectionEnd = async () => {
-      if (election && election.voting_end_time && new Date(election.voting_end_time) < new Date() && election.status !== 'completed') {
-        // Election has ended but not marked as completed, send final results
-        try {
-          const response = await fetch('/api/election/notify', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              electionId: election.id,
-              type: 'results',
-            }),
-          })
-          
-          if (!response.ok) {
-            console.error('Failed to send election results notification')
-          }
-        } catch (error) {
-          console.error('Error sending election results notification:', error)
-        }
-      }
-    }
-    
-    // Run the check after fetching election data
-    if (election) {
-      checkElectionEnd()
-    }
     
     // Subscribe to real-time updates
     const channel = supabase
@@ -73,34 +44,120 @@ export default function ElectionStatsPage() {
           table: 'votes',
           filter: `election_id=eq.${electionId}`
         },
-        () => {
-          console.log('Vote cast, refreshing data')
-          fetchElectionData()
+        (payload) => {
+          console.log('Vote cast, updating vote counts')
+          // Update only the specific candidate's vote count
+          updateVoteCounts(payload.new)
         }
       )
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'votes',
+          filter: `election_id=eq.${electionId}`
+        },
+        (payload) => {
+          console.log('Vote updated, updating vote counts')
+          // Update only the specific candidate's vote count
+          updateVoteCounts(payload.new)
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'votes',
+          filter: `election_id=eq.${electionId}`
+        },
+        (payload) => {
+          console.log('Vote deleted, updating vote counts')
+          // Update only the specific candidate's vote count
+          updateVoteCounts(payload.old, true)
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'candidates'
+          // Removed filter that depended on positions state which might not be populated
+        },
+        (payload) => {
+          console.log('Candidate added, refreshing positions')
+          // Only refresh positions when candidates are added
+          fetchPositions()
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
           schema: 'public',
           table: 'candidates'
         },
-        () => {
-          console.log('Candidate updated, refreshing data')
-          fetchElectionData()
+        (payload) => {
+          console.log('Candidate updated')
+          // Only update the specific candidate
+          updateCandidate(payload.new)
         }
       )
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'DELETE',
+          schema: 'public',
+          table: 'candidates'
+        },
+        (payload) => {
+          console.log('Candidate deleted')
+          // Remove the candidate from the UI
+          removeCandidate(payload.old.id)
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
           schema: 'public',
           table: 'positions',
           filter: `election_id=eq.${electionId}`
         },
-        () => {
-          console.log('Position updated, refreshing data')
-          fetchElectionData()
+        (payload) => {
+          console.log('Position added')
+          // Add the new position
+          addPosition(payload.new)
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'positions',
+          filter: `election_id=eq.${electionId}`
+        },
+        (payload) => {
+          console.log('Position updated')
+          // Update the specific position
+          updatePosition(payload.new)
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'positions',
+          filter: `election_id=eq.${electionId}`
+        },
+        (payload) => {
+          console.log('Position deleted')
+          // Remove the position from the UI
+          removePosition(payload.old.id)
         }
       )
       .subscribe((status) => {
@@ -110,7 +167,53 @@ export default function ElectionStatsPage() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [electionId, election])
+  }, [electionId])
+
+  // Check if election has ended and send final results notification
+  useEffect(() => {
+    const checkElectionEnd = async () => {
+      // Only send notification if election has ended and we haven't sent it yet
+      if (election && 
+          election.voting_end_time && 
+          new Date(election.voting_end_time) < new Date() && 
+          election.status !== 'completed' && 
+          !notificationSent) {
+        // Election has ended but not marked as completed, send final results
+        try {
+          const response = await fetch('/api/election/notify', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              electionId: election.id,
+              type: 'results',
+            }),
+          })
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}))
+            console.error('Failed to send election results notification:', {
+              status: response.status,
+              statusText: response.statusText,
+              errorData
+            })
+          } else {
+            console.log('Election results notification sent successfully')
+            // Mark notification as sent to prevent duplicates
+            setNotificationSent(true)
+          }
+        } catch (error) {
+          console.error('Error sending election results notification:', error)
+        }
+      }
+    }
+    
+    // Run the check when election data changes
+    if (election) {
+      checkElectionEnd()
+    }
+  }, [election, notificationSent]) // Add notificationSent to dependencies
 
   const fetchElectionData = async () => {
     try {
@@ -136,26 +239,7 @@ export default function ElectionStatsPage() {
       }
 
       // Fetch positions with candidates
-      const { data: positionsData, error: positionsError } = await supabase
-        .from('positions')
-        .select(`
-          *,
-          candidates (
-            *,
-            voters:voter_id (name, email)
-          )
-        `)
-        .eq('election_id', electionId)
-        .order('display_order', { ascending: true })
-
-      if (positionsError) {
-        console.error('Error fetching positions:', positionsError)
-        return
-      }
-
-      if (positionsData) {
-        setPositions(positionsData)
-      }
+      await fetchPositions()
     } catch (error) {
       console.error('Unexpected error fetching election data:', error)
     } finally {
@@ -164,6 +248,108 @@ export default function ElectionStatsPage() {
       }
       setRefreshing(false)
     }
+  }
+
+  const fetchPositions = async () => {
+    const { data: positionsData, error: positionsError } = await supabase
+      .from('positions')
+      .select(`
+        *,
+        candidates (
+          *,
+          voters:voter_id (name, email)
+        )
+      `)
+      .eq('election_id', electionId)
+      .order('display_order', { ascending: true })
+
+    if (positionsError) {
+      console.error('Error fetching positions:', positionsError)
+      return
+    }
+
+    if (positionsData) {
+      setPositions(positionsData)
+    }
+  }
+
+  const updateVoteCounts = (voteData: any, isDelete: boolean = false) => {
+    setPositions(prevPositions => {
+      return prevPositions.map(position => {
+        if (position.id === voteData.position_id) {
+          return {
+            ...position,
+            candidates: position.candidates?.map((candidate: any) => {
+              if (candidate.id === voteData.candidate_id) {
+                return {
+                  ...candidate,
+                  vote_count: isDelete ? Math.max(0, (candidate.vote_count || 0) - 1) : (candidate.vote_count || 0) + 1
+                }
+              }
+              return candidate
+            })
+          }
+        }
+        return position
+      })
+    })
+
+    // Update election vote counts
+    setElection((prevElection: any) => ({
+      ...prevElection,
+      total_votes_cast: isDelete 
+        ? Math.max(0, (prevElection.total_votes_cast || 0) - 1) 
+        : (prevElection.total_votes_cast || 0) + 1
+    }))
+  }
+
+  const updateCandidate = (updatedCandidate: any) => {
+    setPositions(prevPositions => {
+      return prevPositions.map(position => {
+        if (position.id === updatedCandidate.position_id) {
+          return {
+            ...position,
+            candidates: position.candidates?.map((candidate: any) => {
+              if (candidate.id === updatedCandidate.id) {
+                return updatedCandidate
+              }
+              return candidate
+            })
+          }
+        }
+        return position
+      })
+    })
+  }
+
+  const removeCandidate = (candidateId: string) => {
+    setPositions(prevPositions => {
+      return prevPositions.map(position => {
+        return {
+          ...position,
+          candidates: position.candidates?.filter((candidate: any) => candidate.id !== candidateId)
+        }
+      })
+    })
+  }
+
+  const addPosition = (newPosition: any) => {
+    setPositions(prevPositions => [...prevPositions, newPosition])
+  }
+
+  const updatePosition = (updatedPosition: any) => {
+    setPositions(prevPositions => {
+      return prevPositions.map(position => {
+        if (position.id === updatedPosition.id) {
+          return updatedPosition
+        }
+        return position
+      })
+    })
+  }
+
+  const removePosition = (positionId: string) => {
+    setPositions(prevPositions => prevPositions.filter(position => position.id !== positionId))
   }
 
   const calculatePercentage = (voteCount: number, totalVotes: number) => {

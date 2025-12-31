@@ -9,6 +9,7 @@ export default function AdminPaymentsPage() {
   const [filteredPayments, setFilteredPayments] = useState<any[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const paymentsPerPage = 10
   const supabase = createClient()
@@ -22,21 +23,35 @@ export default function AdminPaymentsPage() {
   }, [searchTerm, payments])
 
   const fetchPayments = async () => {
-    setLoading(true)
-    const { data, error } = await supabase
-      .from('payments')
-      .select(`
-        *,
-        election:elections(name),
-        user:profiles(full_name, email)
-      `)
-      .order('created_at', { ascending: false })
+    try {
+      setLoading(true)
+      setError(null)
+      const { data, error } = await supabase
+        .from('payments')
+        .select(`
+          *,
+          election:elections(name),
+          user:profiles(full_name, email)
+        `)
+        .order('created_at', { ascending: false })
 
-    if (!error && data) {
-      setPayments(data)
-      setFilteredPayments(data)
+      if (error) {
+        console.error('Error fetching payments:', error)
+        setError('Failed to load payments: ' + error.message)
+        setPayments([])
+        setFilteredPayments([])
+      } else if (data) {
+        setPayments(data)
+        setFilteredPayments(data)
+      }
+    } catch (err) {
+      console.error('Error fetching payments:', err)
+      setError('Failed to load payments: ' + (err as Error).message)
+      setPayments([])
+      setFilteredPayments([])
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const filterPayments = () => {
@@ -102,6 +117,20 @@ export default function AdminPaymentsPage() {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="text-lg">Loading payments...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-lg text-red-600">Error: {error}</div>
+        <button 
+          onClick={fetchPayments}
+          className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+        >
+          Retry
+        </button>
       </div>
     )
   }

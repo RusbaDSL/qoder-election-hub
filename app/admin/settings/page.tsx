@@ -3,13 +3,17 @@
 import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Save, Plus, Edit, Trash2 } from 'lucide-react'
+import type { Database } from '@/lib/database.types'
+
+type AdminSetting = Database['public']['Tables']['admin_settings']['Row']
+type PricingPlan = Database['public']['Tables']['pricing_plans']['Row']
 
 export default function AdminSettingsPage() {
   const [paystackPublicKey, setPaystackPublicKey] = useState('')
   const [paystackSecretKey, setPaystackSecretKey] = useState('')
-  const [pricingPlans, setPricingPlans] = useState<any[]>([])
+  const [pricingPlans, setPricingPlans] = useState<PricingPlan[]>([])
   const [showPlanForm, setShowPlanForm] = useState(false)
-  const [editingPlan, setEditingPlan] = useState<any>(null)
+  const [editingPlan, setEditingPlan] = useState<PricingPlan | null>(null)
   const [planForm, setPlanForm] = useState({
     name: '',
     min_voters: 0,
@@ -18,6 +22,7 @@ export default function AdminSettingsPage() {
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const supabase = createClient()
 
   useEffect(() => {
@@ -26,76 +31,153 @@ export default function AdminSettingsPage() {
   }, [])
 
   const fetchSettings = async () => {
-    const { data } = await supabase
-      .from('admin_settings')
-      .select('*')
-      .in('key', ['paystack_public_key', 'paystack_secret_key'])
+    try {
+      const { data, error } = await supabase
+        .from('admin_settings')
+        .select('*')
+        .in('key', ['paystack_public_key', 'paystack_secret_key'])
 
-    if (data) {
-      data.forEach((setting) => {
-        const value = typeof (setting as any).value === 'string' 
-          ? (setting as any).value 
-          : JSON.stringify((setting as any).value).replace(/"/g, '')
-        
-        if ((setting as any).key === 'paystack_public_key') {
-          setPaystackPublicKey(value)
-        } else if ((setting as any).key === 'paystack_secret_key') {
-          setPaystackSecretKey(value)
-        }
-      })
+      if (error) {
+        console.error('Error fetching settings:', error)
+        setError('Failed to load settings: ' + error.message)
+        return
+      }
+
+      if (data) {
+        data.forEach((setting: AdminSetting) => {
+          // Since value is JSONB, we need to extract the string value
+          let value = ''
+          if (typeof setting.value === 'string') {
+            value = setting.value
+          } else if (setting.value && typeof setting.value === 'object' && !Array.isArray(setting.value)) {
+            // Handle case where value might be stored as {"value": "..."}
+            value = (setting.value as any).value || JSON.stringify(setting.value)
+          } else {
+            value = String(setting.value)
+          }
+          
+          if (setting.key === 'paystack_public_key') {
+            setPaystackPublicKey(value)
+          } else if (setting.key === 'paystack_secret_key') {
+            setPaystackSecretKey(value)
+          }
+        })
+      }
+    } catch (err) {
+      console.error('Error fetching settings:', err)
+      setError('Failed to load settings: ' + (err as Error).message)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   const fetchPricingPlans = async () => {
-    const { data } = await supabase
-      .from('pricing_plans')
-      .select('*')
-      .order('min_voters', { ascending: true })
+    try {
+      const { data, error } = await supabase
+        .from('pricing_plans')
+        .select('*')
+        .order('min_voters', { ascending: true })
 
-    if (data) {
-      setPricingPlans(data)
+      if (error) {
+        console.error('Error fetching pricing plans:', error)
+        setError('Failed to load pricing plans: ' + error.message)
+        return
+      }
+
+      if (data) {
+        setPricingPlans(data)
+      }
+    } catch (err) {
+      console.error('Error fetching pricing plans:', err)
+      setError('Failed to load pricing plans: ' + (err as Error).message)
     }
   }
 
   const savePaystackSettings = async () => {
-    setSaving(true)
+    try {
+      setSaving(true)
+      setError(null)
 
-    await supabase
-      .from('admin_settings')
-      .update({ value: JSON.stringify(paystackPublicKey) } as any)
-      .eq('key', 'paystack_public_key')
+      // Update Paystack public key
+      const { error: publicKeyError } = await supabase
+        .from('admin_settings')
+        .upsert({ 
+          key: 'paystack_public_key', 
+          value: paystackPublicKey,
+          description: 'Paystack Public Key'
+        } as any)
 
-    await supabase
-      .from('admin_settings')
-      .update({ value: JSON.stringify(paystackSecretKey) } as any)
-      .eq('key', 'paystack_secret_key')
+      if (publicKeyError) throw new Error(publicKeyError.message)
 
-    alert('Paystack settings saved successfully!')
-    setSaving(false)
+      // Update Paystack secret key
+      const { error: secretKeyError } = await supabase
+        .from('admin_settings')
+        .upsert({ 
+          key: 'paystack_secret_key', 
+          value: paystackSecretKey,
+          description: 'Paystack Secret Key'
+        } as any)
+
+      if (secretKeyError) throw new Error(secretKeyError.message)
+
+      alert('Paystack settings saved successfully!')
+    } catch (err) {
+      console.error('Error saving Paystack settings:', err)
+      setError('Failed to save settings: ' + (err as Error).message)
+      alert('Error saving settings: ' + (err as Error).message)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handlePlanSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    if (editingPlan) {
-      await supabase
-        .from('pricing_plans')
-        .update(planForm as any)
-        .eq('id', editingPlan.id)
-    } else {
-      await supabase
-        .from('pricing_plans')
-        .insert({ ...planForm, currency: 'NGN', is_active: true } as any)
-    }
+    try {
+      setError(null)
+      
+      if (editingPlan) {
+        // Update existing plan using upsert to avoid typing issue
+        const { error } = await supabase
+          .from('pricing_plans')
+          .upsert({
+            id: editingPlan.id,
+            name: planForm.name,
+            min_voters: planForm.min_voters,
+            max_voters: planForm.max_voters,
+            price: planForm.price
+          } as any)
+          .eq('id', editingPlan.id)
+        
+        if (error) throw new Error(error.message)
+      } else {
+        // Create new plan
+        const { error } = await supabase
+          .from('pricing_plans')
+          .insert({
+            name: planForm.name,
+            min_voters: planForm.min_voters,
+            max_voters: planForm.max_voters,
+            price: planForm.price,
+            currency: 'NGN',
+            is_active: true
+          } as any)
+        
+        if (error) throw new Error(error.message)
+      }
 
-    setPlanForm({ name: '', min_voters: 0, max_voters: 0, price: 0 })
-    setEditingPlan(null)
-    setShowPlanForm(false)
-    fetchPricingPlans()
+      setPlanForm({ name: '', min_voters: 0, max_voters: 0, price: 0 })
+      setEditingPlan(null)
+      setShowPlanForm(false)
+      fetchPricingPlans()
+    } catch (err) {
+      console.error('Error saving pricing plan:', err)
+      setError('Failed to save pricing plan: ' + (err as Error).message)
+      alert('Error saving pricing plan: ' + (err as Error).message)
+    }
   }
 
-  const handleEditPlan = (plan: any) => {
+  const handleEditPlan = (plan: PricingPlan) => {
     setEditingPlan(plan)
     setPlanForm({
       name: plan.name,
@@ -109,21 +191,40 @@ export default function AdminSettingsPage() {
   const handleDeletePlan = async (id: string) => {
     if (!confirm('Delete this pricing plan?')) return
 
-    await supabase
-      .from('pricing_plans')
-      .delete()
-      .eq('id', id)
+    try {
+      setError(null)
+      const { error } = await supabase
+        .from('pricing_plans')
+        .delete()
+        .eq('id', id)
 
-    fetchPricingPlans()
+      if (error) throw new Error(error.message)
+      fetchPricingPlans()
+    } catch (err) {
+      console.error('Error deleting pricing plan:', err)
+      setError('Failed to delete pricing plan: ' + (err as Error).message)
+      alert('Error deleting pricing plan: ' + (err as Error).message)
+    }
   }
 
   const togglePlanStatus = async (id: string, currentStatus: boolean) => {
-    await supabase
-      .from('pricing_plans')
-      .update({ is_active: !currentStatus } as any)
-      .eq('id', id)
+    try {
+      setError(null)
+      const { error } = await supabase
+        .from('pricing_plans')
+        .upsert({
+          id: id,
+          is_active: !currentStatus
+        } as any)
+        .eq('id', id)
 
-    fetchPricingPlans()
+      if (error) throw new Error(error.message)
+      fetchPricingPlans()
+    } catch (err) {
+      console.error('Error toggling pricing plan status:', err)
+      setError('Failed to update pricing plan status: ' + (err as Error).message)
+      alert('Error updating pricing plan status: ' + (err as Error).message)
+    }
   }
 
   if (loading) {
@@ -135,6 +236,18 @@ export default function AdminSettingsPage() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900 mb-6">System Settings</h1>
       </div>
+
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <div className="text-red-800">Error: {error}</div>
+          <button 
+            onClick={() => setError(null)}
+            className="mt-2 text-red-600 hover:text-red-800"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
 
       {/* Paystack Configuration */}
       <div className="bg-white shadow rounded-lg p-6">
@@ -235,7 +348,7 @@ export default function AdminSettingsPage() {
                   min="0"
                   className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 text-sm"
                   value={planForm.price}
-                  onChange={(e) => setPlanForm({ ...planForm, price: parseFloat(e.target.value) })}
+                  onChange={(e) => setPlanForm({ ...planForm, price: parseFloat(e.target.value) || 0 })}
                   placeholder="50000"
                 />
               </div>
@@ -250,7 +363,7 @@ export default function AdminSettingsPage() {
                   min="1"
                   className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 text-sm"
                   value={planForm.min_voters}
-                  onChange={(e) => setPlanForm({ ...planForm, min_voters: parseInt(e.target.value) })}
+                  onChange={(e) => setPlanForm({ ...planForm, min_voters: parseInt(e.target.value) || 0 })}
                 />
               </div>
 
@@ -264,7 +377,7 @@ export default function AdminSettingsPage() {
                   min="1"
                   className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500 text-sm"
                   value={planForm.max_voters}
-                  onChange={(e) => setPlanForm({ ...planForm, max_voters: parseInt(e.target.value) })}
+                  onChange={(e) => setPlanForm({ ...planForm, max_voters: parseInt(e.target.value) || 0 })}
                 />
               </div>
 
