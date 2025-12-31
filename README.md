@@ -83,7 +83,7 @@ Create a `.env.local` file in the root directory:
 
 ```env
 # Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=your-supabase-url-here
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-project-url-here
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key-here
 SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key-here
 
