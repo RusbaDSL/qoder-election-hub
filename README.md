@@ -83,13 +83,13 @@ Create a `.env.local` file in the root directory:
 
 ```env
 # Supabase Configuration
-NEXT_PUBLIC_SUPABASE_URL=your-supabase-url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key
+NEXT_PUBLIC_SUPABASE_URL=your-supabase-url-here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your-supabase-anon-key-here
+SUPABASE_SERVICE_ROLE_KEY=your-supabase-service-role-key-here
 
 # Paystack Configuration (optional - can be configured via admin panel)
-NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY=your-paystack-public-key
-PAYSTACK_SECRET_KEY=your-paystack-secret-key
+NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY=your-paystack-public-key-here
+PAYSTACK_SECRET_KEY=your-paystack-secret-key-here
 
 # App Configuration
 NEXT_PUBLIC_APP_URL=http://localhost:3000

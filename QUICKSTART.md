@@ -27,7 +27,7 @@ npm install
 ### Step 3: Configure Environment (1 min)
 
 Create `.env.local` file:
-```env
+```
 NEXT_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key-here
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
