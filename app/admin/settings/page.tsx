@@ -59,7 +59,8 @@ export default function AdminSettingsPage() {
           if (setting.key === 'paystack_public_key') {
             setPaystackPublicKey(value)
           } else if (setting.key === 'paystack_secret_key') {
-            setPaystackSecretKey(value)
+            // Only set a placeholder for the secret key to avoid exposing it in the client
+            setPaystackSecretKey(value ? '••••••••' : '')
           }
         })
       }
@@ -109,16 +110,18 @@ export default function AdminSettingsPage() {
 
       if (publicKeyError) throw new Error(publicKeyError.message)
 
-      // Update Paystack secret key
-      const { error: secretKeyError } = await supabase
-        .from('admin_settings')
-        .upsert({ 
-          key: 'paystack_secret_key', 
-          value: paystackSecretKey,
-          description: 'Paystack Secret Key'
-        } as any)
+      // Only update Paystack secret key if a new value is provided (not the masked one)
+      if (paystackSecretKey && paystackSecretKey !== '••••••••') {
+        const { error: secretKeyError } = await supabase
+          .from('admin_settings')
+          .upsert({ 
+            key: 'paystack_secret_key', 
+            value: paystackSecretKey,
+            description: 'Paystack Secret Key'
+          } as any)
 
-      if (secretKeyError) throw new Error(secretKeyError.message)
+        if (secretKeyError) throw new Error(secretKeyError.message)
+      }
 
       alert('Paystack settings saved successfully!')
     } catch (err) {
@@ -281,7 +284,7 @@ export default function AdminSettingsPage() {
               className="block w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-blue-500"
               value={paystackSecretKey}
               onChange={(e) => setPaystackSecretKey(e.target.value)}
-              placeholder="sk_live_..."
+              placeholder={paystackSecretKey === '••••••••' ? 'Leave blank to keep current value' : 'sk_live_...'}
             />
           </div>
 
