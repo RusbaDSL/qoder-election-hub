@@ -54,10 +54,9 @@ export default function PaymentSection({ electionId }: PaymentSectionProps) {
         .eq('election_id', electionId)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single()
 
-      if (paymentData) {
-        setPayment(paymentData)
+      if (paymentData && paymentData.length > 0) {
+        setPayment(paymentData[0])
       }
       
       setLoading(false)
@@ -115,10 +114,9 @@ export default function PaymentSection({ electionId }: PaymentSectionProps) {
           .eq('election_id', electionId)
           .order('created_at', { ascending: false })
           .limit(1)
-          .single()
 
-        if (paymentData) {
-          setPayment(paymentData)
+        if (paymentData && paymentData.length > 0) {
+          setPayment(paymentData[0])
         }
       } else if (data.authorization_url) {
         // Redirect to Paystack payment page
